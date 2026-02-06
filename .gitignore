@@ -1,0 +1,29 @@
+# Ignorar data-lake inteiro
+data-lake/.minio.sys/
+
+.minio.sys/
+
+# Ignorar arquivos temporários do Spark
+*.log
+*.tmp
+
+# Ignorar cache do Python
+__pycache__/
+*.pyc
+
+# Ignorar arquivos de ambiente do Docker
+.env
+docker-compose.override.yml
+
+# Ignorar pastas de IDE/editor
+.vscode/
+.idea/
+
+# Ignorar arquivos de sistema
+.DS_Store
+Thumbs.db
+
+# Ignorar grandes outputs (opcional)
+*.zip
+*.tar
+*.bak

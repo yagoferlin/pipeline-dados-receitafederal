@@ -1,0 +1,17 @@
+# Usando imagem oficial do Spark
+FROM apache/spark:3.5.0
+
+# Troca para root para instalar pacotes
+USER root
+
+# Instala bibliotecas Python necessárias
+RUN pip install --no-cache-dir pandas requests matplotlib
+
+# Adiciona o diretório bin do Spark ao PATH para o usuário spark
+ENV PATH="/opt/spark/bin:${PATH}"
+
+# Volta para o usuário spark
+USER spark
+
+# Diretório de trabalho padrão
+WORKDIR /opt/spark/jobs
