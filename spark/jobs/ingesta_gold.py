@@ -61,20 +61,6 @@ for t in tabelas:
         .drop("rn")
     )
 
-    # Trata Estabelecimentos
-    if tabela == "tb_estabelecimentos":
-        df_mun = (
-            spark.read.parquet(f"{path_silver}tb_municipios/")
-            .filter(F.col("txtMunicipio") == "SAO PAULO")
-            .select("idMunicipio")
-            )
-
-        df_silver = (
-            df_silver
-            .join(df_mun, "idMunicipio", "inner")
-            .filter(F.col("situacao_cadastral") == "ATIVA")
-        )
-
     # Controle Atualização
     df_novos = df_silver.filter(F.col(col_controle) == "NOVO")
     df_atualizados = df_silver.filter(F.col(col_controle) == "ATUALIZADO")
