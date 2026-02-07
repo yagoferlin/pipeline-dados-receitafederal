@@ -1,195 +1,97 @@
-🔧 Pré-requisitos
+🌐 Passo a Passo para Reproduzir o Pipeline
+
+1️⃣ Pré-requisitos
 ```
-Para rodar o pipeline em outro ambiente, você precisa garantir:
+Antes de tudo, certifique-se de que o ambiente possui:
 
-Docker & Docker Compose
+Docker ≥ 24.0
 
-Docker ≥ 24.x
+docker-compose ≥ 1.29
 
-Docker Compose (integrado ao Docker Desktop ou separado)
-```
-Teste:
-```
-docker --version
-docker compose version
+Python 3.10+ (para scripts Spark, opcional se usar container)
 
-Portas livres
+Portas livres: 8081 (Airflow), 4040 (Spark UI), 9000/9001 (MinIO)
 
-Airflow: 8081
+Recursos mínimos: 8GB RAM, 4 cores CPU
 
-Spark UI: 4040
-
-MinIO: 9000 (endpoint) e 9001 (console)
-
-Se alguma porta estiver ocupada, altere em docker-compose.yml.
-```
-Espaço em disco
-```
-Para dados brutos da Receita Federal e Parquet intermediário/final, tenha ≥10GB livres.
-
-Ajuste /data-lake para o caminho do ambiente, se necessário.
-```
-Rede
-```
-Se estiver em ambiente corporativo, verifique que URLs externas (ex: Receita Federal) podem ser acessadas.
-```
-🏗 Estrutura do projeto
-```
-Certifique-se de que a estrutura é idêntica ao que está no seu README:
-
-pipeline-dados/
-├── Dockerfile.spark
-├── docker-compose.yml
-├── airflow/dags/dag.py
-├── data-lake/
-│   ├── bronze/
-│   ├── silver/
-│   ├── gold/
-│   └── gold_tmp/
-└── spark/jobs/
-    ├── contagem_matriz.py
-    ├── controle_atualizacao.py
-    ├── ingesta_bronze.py
-    ├── ingesta_silver.py
-    └── ingesta_gold.py
-
-⚠️ Todos os diretórios em data-lake devem existir antes de rodar o pipeline, pois Spark escreve diretamente neles.
-```
-🐳 Configuração do Docker e MinIO
-```
-docker-compose.yml
-
-Contém serviços: spark, airflow, minio.
-
-Ajuste volumes e paths para o seu ambiente:
-
-volumes:
-  - ./data-lake:/data
-  - ./spark/jobs:/opt/spark/jobs
+Para ambientes em cluster ou nuvem, ajuste memória e núcleos do Spark conforme volume de dados.
 ```
 
-Garanta que environment de MinIO esteja correto:
+2️⃣ Clonar o repositório
 ```
-MINIO_ROOT_USER: minioadmin
-MINIO_ROOT_PASSWORD: minioadmin
+git clone <URL_DO_REPOSITORIO>
+cd pipeline-dados
 ```
-
-Dockerfile.spark
+3️⃣ Configurar diretórios de dados
 ```
-Imagem personalizada com PySpark + dependências.
+Crie as pastas para o Data Lake, se ainda não existirem:
 
-Pode adicionar pacotes extras, ex: requests, python-dateutil:
-
-RUN pip install requests python-dateutil
+mkdir -p data-lake/bronze
+mkdir -p data-lake/silver
+mkdir -p data-lake/gold
+mkdir -p data-lake/gold_tmp
 ```
-🚀 Rodando o Pipeline
+4️⃣ Subir containers
 ```
-1️⃣ Subir os containers
-
-No diretório do projeto:
-
 docker-compose up -d --build
 
--d → roda em background
+Isso irá iniciar:
 
---build → força rebuild das imagens Docker
+Airflow → orquestra os jobs.
 
-2️⃣ Verificar serviços
+Spark → executa os scripts de transformação.
 
+MinIO → armazenamento compatível com S3 para o Data Lake.
+```
+5️⃣ Verificar interfaces
+```
 Airflow: http://localhost:8081
+ → usuário admin / senha admin123
 
-MinIO Console: http://localhost:9001
+MinIO: http://localhost:9001
+ → usuário minioadmin / senha minioadmin
 
 Spark UI: http://localhost:4040
-
-3️⃣ Executar jobs manualmente (opcional)
-
-Se quiser testar cada camada:
-
-# Bronze
-spark-submit-job ingesta_bronze.py --anomes 2026-01
-
-# Silver
-spark-submit-job ingesta_silver.py
-
-# Controle de Atualização
-spark-submit-job controle_atualizacao.py
-
-# Gold
-spark-submit-job ingesta_gold.py
-
-
-Observação: spark-submit-job é a função que você criou no projeto para simplificar chamadas Spark dentro do container.
+ → monitoramento de jobs Spark
 ```
-4️⃣ Fluxo automático pelo Airflow
+6️⃣ Executar jobs Spark manualmente
 ```
-Abra Airflow → DAG dag.py deve estar ativo.
+Dentro do container Spark, execute qualquer script manualmente:
 
-Trigger manual ou configure schedule:
+spark-submit-job ingesta_bronze.py
 
-DAG executa sequencialmente: Bronze → Silver → Controle Atualizacao → Gold
-
-Logs de execução disponíveis em cada task do DAG.
+Outros scripts: ingesta_silver.py, controle_atualizacao.py, ingesta_gold.py, contagem_matriz.py.
 ```
-💾 Ajustando para outro ambiente
+7️⃣ Executar pipeline automático via Airflow
 ```
-Paths
+Acesse o Airflow (localhost:8081).
 
-No seu código Spark, caminhos são fixos (/data/bronze/...).
+Habilite o DAG dag.py.
 
-Se o host tiver outra pasta, ajuste volumes e paths no Docker Compose e nos scripts.
+Clique em Trigger DAG → o pipeline executa automaticamente:
+Bronze → Silver → Controle Atualizacao → Gold
 ```
-Variáveis de ambiente
+8️⃣ Verificação e logs
 ```
-TOKEN Receita Federal → altere em ingesta_bronze.py se for diferente.
+Spark: Spark UI (localhost:4040) → monitoramento de tarefas, tempo de execução e erros.
+
+Airflow: Logs de cada task no DAG → detalhes de execução e possíveis falhas.
+
+MinIO: Confirme se arquivos Parquet foram criados nas camadas Bronze, Silver e Gold.
 ```
-Performance
+9️⃣ Limpando ambiente
 ```
-Spark configura:
+Para parar containers e liberar recursos:
 
-.config("spark.driver.memory", "2g")
-.config("spark.executor.memory", "2g")
-.config("spark.sql.shuffle.partitions", "4")
+docker-compose down
 
-Para máquinas maiores, aumente memória e número de partições.
+Para reiniciar o pipeline, apenas suba novamente os containers.
 ```
-Arquivos grandes
+1️⃣0️⃣ Dicas adicionais
 ```
-Scripts lidam com arquivos em chunks (Bronze) e lotes (Silver).
+Em servidor Linux, ajuste volumes de dados e caminhos no docker-compose.yml.
 
-Para datasets maiores, ajuste:
+Em nuvem (OCI, AWS, GCP), configure endpoints de MinIO/S3 e redirecione portas ou use load balancer.
 
-Bronze → tamanho do chunk de download (1MB por default)
-
-Silver → batch_size e repartition_num
-```
-📊 Testando o pipeline
-```
-Verifique se dados aparecem em:
-
-data-lake/bronze
-data-lake/silver
-data-lake/gold
-
-Confira logs do Spark dentro do container:
-
-docker logs -f <nome_container_spark>
-
-No Airflow, visualize logs de cada task para checar:
-
-Download
-
-Processamento Silver
-
-Controle de atualização
-
-Atualização Gold
-```
-🔄 Backup e segurança
-```
-Gold → gravado incremental e seguro usando pasta temporária (gold_tmp).
-
-Silver → backup temporário para evitar sobrescrita incorreta.
-
-Se houver falha, dados originais não são perdidos.
+Sempre use gold_tmp → garante atomicidade e rollback seguro antes de atualizar a camada Gold.
 ```
