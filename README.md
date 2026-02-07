@@ -1,6 +1,6 @@
 🚀 Pipeline de Dados com Spark, Airflow e MinIO
 
-Este projeto é um pipeline de dados completo que utiliza Apache Spark, Airflow e MinIO para ingestão, processamento e armazenamento de dados em camadas Bronze → Silver → Gold.
+Este projeto é um pipeline de dados completo que utiliza Apache Spark, Airflow e MinIO para ingestão, processamento e armazenamento de dados em camadas Bronze → Silver → Controle Atualizacao → Gold.
 
 📂 Estrutura do Projeto
 ```
@@ -29,11 +29,73 @@ Bronze	Dados brutos, direto da fonte.
 Silver	Dados transformados e padronizados.
 Gold	Dados finais prontos para análise e relatórios.
 ```
+
+📊 Desafios e como lidei com eles
+```
+1️⃣ Bronze – Dados Brutos
+
+Baixa arquivos da Receita Federal (.zip) e extrai CSVs.
+
+Processa downloads em chunks, para lidar com arquivos grandes.
+
+Grava em Parquet na camada Bronze:
+
+Primeiro arquivo → overwrite
+
+Demais arquivos → append
+
+Limpa arquivos temporários após ingestão.
+```
+```
+2️⃣ Silver – Dados Padronizados
+
+Lê arquivos do Bronze em lotes, garantindo eficiência.
+
+Padroniza dados: datas, CNPJs, CEPs, telefones, strings.
+
+Adiciona colunas de controle:
+
+sys_datimportacao (timestamp de ingestão)
+
+sys_datatualizacao (para controle futuro)
+
+sys_vlrhash (hash para identificar mudanças)
+
+Grava em Parquet na camada Silver, usando overwrite ou append conforme o lote.
+```
+```
+3️⃣ Controle de Atualização
+
+Compara Silver com Gold para identificar registros:
+
+NOVO → não existe na Gold
+
+ATUALIZADO → hash mudou
+
+TRATADO_ANTERIORMENTE → hash igual
+
+Atualiza Silver com o status em coluna txtControleAtualizacao.
+
+Faz backup temporário (*_tmp) para garantir consistência antes de substituir dados existentes.
+```
+```
+4️⃣ Gold – Dados Consolidados
+
+Deduplicação usando chaves primárias e hash.
+
+Atualiza incrementalmente:
+
+Novos registros → adicionados
+
+Atualizados → substituem registros existentes, mantendo histórico e timestamps
+
+Grava de forma segura usando pasta temporária, evitando perda de dados em caso de falhas.
+```
 ⚙️ Tecnologias Utilizadas
 ```
 🐍 Python – Scripts de ingestão e transformação.
 
-⚡ Apache Spark 3.5.0 – Processamento distribuído.
+⚡Apache Spark 3.5.0 – Processamento distribuído.
 
 🕸 Apache Airflow 2.8.1 – Orquestração de workflows.
 
@@ -67,7 +129,7 @@ Usuário: minioadmin | Senha: minioadmin
 ```
 Executar jobs Spark manualmente (criei uma função para simplificar a chamada):
 ```
-spark-submit-job controle_atualizacao.py
+spark-submit-job {script_a_ser_chamado}.py
 ```
 
 Fluxo automático pelo Airflow:
@@ -81,18 +143,6 @@ Todos os diretórios de dados (bronze, silver, gold, gold_tmp) devem existir ant
 O pipeline pode ser executado manualmente via Spark ou automaticamente via Airflow.
 
 Certifique-se de que as portas 8081, 4040, 9000 e 9001 estejam livres.
-```
-🤝 Contribuição
-```
-Faça um fork do repositório.
-
-Crie uma branch para sua feature: git checkout -b feature/nova-feature
-
-Faça commit das alterações: git commit -m "Adiciona nova feature"
-
-Faça push para sua branch: git push origin feature/nova-feature
-
-Abra um Pull Request.
 ```
 📝 Licença
 ```
