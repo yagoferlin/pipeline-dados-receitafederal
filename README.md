@@ -32,9 +32,29 @@ Gold	Dados finais prontos para análise e relatórios.
 
 📊 Desafios e como lidei com eles
 ```
+Por que usamos Parquet
+
+Formato colunar → lê só as colunas necessárias, economizando memória e I/O.
+
+Mantém o schema dos dados → evita erros e garante consistência.
+
+Compatível com Spark e MinIO/S3, com suporte a compressão → mais rápido e eficiente.
+```
+```
+Por que criamos gold_tmp
+
+Área temporária para evitar perda de dados e garantir atomicidade.
+
+Só substituímos o Gold final depois que tudo é processado corretamente.
+
+Permite rollback fácil em caso de falhas e mantém consistência.
+```
+```
 1️⃣ Bronze – Dados Brutos
 
 Baixa arquivos da Receita Federal (.zip) e extrai CSVs.
+
+Possível passar via variables do AirFlow o ANOMES a ser puxado. Se não passar nenhum, ele puxa o ANOMES atual.
 
 Processa downloads em chunks, para lidar com arquivos grandes.
 
